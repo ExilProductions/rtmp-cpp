@@ -1007,7 +1007,7 @@ RTMPServer::RTMPServer(int port) : port(port), server_fd(-1), running(false) {}
 
 RTMPServer::~RTMPServer() { stop(); }
 
-bool RTMPServer::start(bool& isRunning) {
+bool RTMPServer::start(bool &isRunning) {
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
     LOG_ERROR("Failed to create socket");
@@ -1049,26 +1049,36 @@ void RTMPServer::stop() {
     return;
   running = false;
   if (server_fd >= 0) {
+    shutdown(server_fd, SHUT_RDWR);
     close(server_fd);
     server_fd = -1;
   }
-  if (accept_thread.joinable()) {
-    accept_thread.join();
-  }
-  if (ping_thread.joinable()) {
-    ping_thread.join();
-  }
-  if (timeout_thread.joinable()) {
-    timeout_thread.join();
-  }
-  for (auto &thread : client_threads) {
-    if (thread.joinable()) {
-      thread.join();
+
+  {
+    std::lock_guard<std::mutex> lock(sessions_mutex);
+    for (auto &session : sessions) {
+      shutdown(session->getFd(), SHUT_RDWR);
+      close(session->getFd());
     }
   }
+
+  if (accept_thread.joinable())
+    accept_thread.join();
+  if (ping_thread.joinable())
+    ping_thread.join();
+  if (timeout_thread.joinable())
+    timeout_thread.join();
+
+  for (auto &thread : client_threads) {
+    if (thread.joinable())
+      thread.join();
+  }
   client_threads.clear();
+
+  // Clear sessions
   std::lock_guard<std::mutex> lock(sessions_mutex);
   sessions.clear();
+
   LOG_INFO("RTMP Server stopped");
 }
 
@@ -1437,10 +1447,10 @@ bool RTMPServer::checkConnectionLimits(const std::string &app,
                                        bool is_publisher) const {
   if (is_publisher) {
     int current = countPublishers(app, stream_key);
-    return current >= max_publishers_per_stream;
+    return current >= max_publishers_per_stream; // FIXED: Used propper Op
   } else {
     int current = countPlayers(app, stream_key);
-    return current >= max_players_per_stream;
+    return current <= max_players_per_stream; // FIXED: User propper Op
   }
 }
 
