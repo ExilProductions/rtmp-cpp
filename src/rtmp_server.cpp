@@ -1450,7 +1450,7 @@ bool RTMPServer::checkConnectionLimits(const std::string &app,
     return current >= max_publishers_per_stream; // FIXED: Used propper Op
   } else {
     int current = countPlayers(app, stream_key);
-    return current <= max_players_per_stream; // FIXED: User propper Op
+    return current <= max_players_per_stream; // FIXED: Used propper Op
   }
 }
 
