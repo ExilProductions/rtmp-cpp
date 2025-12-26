@@ -22,6 +22,10 @@ A lightweight C++ RTMP server library with C-compatible API.
 
 This builds `librtmp.so` and example binary `rtmp_example`.
 
+## Windows Support
+
+Windows Support has been added in the branch [windows-support](https://github.com/ExilProductions/rtmp-cpp/tree/windows-support)
+
 ### Run Example
 ```bash
 ./build/rtmp_example
