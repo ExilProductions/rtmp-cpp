@@ -20,9 +20,8 @@ set_target_properties(rtmp PROPERTIES
     PUBLIC_HEADER include/rtmp_capi.h
 )
 
-# Example executable
-add_executable(rtmp_example example/main.c)
-target_link_libraries(rtmp_example rtmp)
+add_executable(rtmp_server server/main.c)
+target_link_libraries(rtmp_server rtmp)
 
 install(TARGETS rtmp 
     LIBRARY DESTINATION lib
@@ -30,4 +29,4 @@ install(TARGETS rtmp
     PUBLIC_HEADER DESTINATION include
 )
 
-install(TARGETS rtmp_example DESTINATION bin)
+install(TARGETS rtmp_server DESTINATION bin)
