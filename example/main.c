@@ -8,13 +8,13 @@ static void on_connect_cb(const char* ip, void* data)
 }
 
 static void on_publish_cb(const char* ip, const char* app, const char* key,
-                          void* data)
+                          void *data)
 {
     printf("Publish from %s: %s/%s\n", ip, app, key);
 }
 
 static void on_audio_cb(const char* app, const char* key, const uint8_t* data,
-                        uint32_t len, uint32_t ts, void* ud)
+                        uint32_t len, uint32_t ts, void *ud)
 {
     printf("Audio data for %s/%s, len=%u, ts=%u\n", app, key, len, ts);
 }
