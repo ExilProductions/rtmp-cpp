@@ -1,6 +1,5 @@
 #include "../include/rtmp_capi.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 static void on_connect_cb(const char* ip, void* data)
