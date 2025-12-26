@@ -48,7 +48,7 @@ typedef bool (*RtmpAuthCallback)(const char *app, const char *stream_key,
 // Create and destroy
 RtmpServerHandle rtmp_server_create(int port);
 void rtmp_server_destroy(RtmpServerHandle handle);
-bool rtmp_server_start(RtmpServerHandle handle);
+bool rtmp_server_start(RtmpServerHandle handle, bool* isRunning);
 void rtmp_server_stop(RtmpServerHandle handle);
 bool rtmp_server_is_running(RtmpServerHandle handle);
 

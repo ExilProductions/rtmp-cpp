@@ -1,4 +1,4 @@
-#include "../include/rtmp_server.h"
+#include "../include/rtmp_server.hpp"
 #include <algorithm>
 #include <cstring>
 #include <ctime>
@@ -1007,7 +1007,7 @@ RTMPServer::RTMPServer(int port) : port(port), server_fd(-1), running(false) {}
 
 RTMPServer::~RTMPServer() { stop(); }
 
-bool RTMPServer::start() {
+bool RTMPServer::start(bool& isRunning) {
   server_fd = socket(AF_INET, SOCK_STREAM, 0);
   if (server_fd < 0) {
     LOG_ERROR("Failed to create socket");
@@ -1040,6 +1040,7 @@ bool RTMPServer::start() {
   }
   timeout_thread = std::thread(&RTMPServer::timeoutCheckRoutine, this);
   LOG_INFO("RTMP Server started on port " + std::to_string(port));
+  isRunning = true;
   return true;
 }
 
@@ -1436,10 +1437,10 @@ bool RTMPServer::checkConnectionLimits(const std::string &app,
                                        bool is_publisher) const {
   if (is_publisher) {
     int current = countPublishers(app, stream_key);
-    return current < max_publishers_per_stream;
+    return current >= max_publishers_per_stream;
   } else {
     int current = countPlayers(app, stream_key);
-    return current < max_players_per_stream;
+    return current >= max_players_per_stream;
   }
 }
 

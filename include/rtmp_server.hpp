@@ -340,7 +340,7 @@ public:
   RTMPServer(int port = 1935);
   ~RTMPServer();
 
-  bool start();
+  bool start(bool& isRunning);
   void stop();
   bool isRunning() const { return running; }
 

@@ -1,4 +1,4 @@
-#include "../include/rtmp_capi.h"
+#include "../include/rtmp_capi.hpp"
 #include <stdio.h>
 #include <unistd.h>
 
@@ -27,10 +27,12 @@ int main()
     rtmp_server_set_on_publish(server, on_publish_cb, NULL);
     rtmp_server_set_on_audio_data(server, on_audio_cb, NULL);
     rtmp_server_enable_gop_cache(server, true);
-    if (rtmp_server_start(server))
+    bool isRunning = false;
+    if (rtmp_server_start(server, &isRunning))
     {
-        printf("RTMP Server started on port 1935. Press Ctrl+C to stop.\n");
-        sleep(300); // 5 min
+        while (isRunning) {
+            sleep(1); // Block main Thread
+        }
     }
     else
     {

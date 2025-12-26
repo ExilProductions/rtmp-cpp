@@ -1,5 +1,5 @@
-#include "../include/rtmp_capi.h"
-#include "../include/rtmp_server.h"
+#include "../include/rtmp_capi.hpp"
+#include "../include/rtmp_server.hpp"
 #include <string>
 #include <vector>
 
@@ -109,12 +109,15 @@ void rtmp_server_destroy(RtmpServerHandle handle) {
   delete impl->server;
   delete impl;
 }
-bool rtmp_server_start(RtmpServerHandle handle) {
-  if (!handle)
+bool rtmp_server_start(RtmpServerHandle handle, bool *isRunning) {
+  if (!handle || !isRunning)
     return false;
+
   Impl *impl = static_cast<Impl *>(handle);
-  return impl->server->start();
+  bool result = impl->server->start(*isRunning);
+  return result;
 }
+
 void rtmp_server_stop(RtmpServerHandle handle) {
   if (!handle)
     return;
