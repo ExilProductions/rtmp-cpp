@@ -20,8 +20,11 @@ set_target_properties(rtmp PROPERTIES
     PUBLIC_HEADER include/rtmp_capi.h
 )
 
-add_executable(rtmp_server server/main.c)
-target_link_libraries(rtmp_server rtmp)
+add_executable(rtmp_server_c server/c/main.c)
+target_link_libraries(rtmp_server_c rtmp)
+
+add_executable(rtmp_server_cpp server/cpp/main.cpp)
+target_link_libraries(rtmp_server_cpp rtmp)
 
 install(TARGETS rtmp 
     LIBRARY DESTINATION lib
@@ -29,4 +32,4 @@ install(TARGETS rtmp
     PUBLIC_HEADER DESTINATION include
 )
 
-install(TARGETS rtmp_server DESTINATION bin)
+install(TARGETS rtmp_server_c rtmp_server_cpp DESTINATION bin)
