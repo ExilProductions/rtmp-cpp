@@ -6,6 +6,7 @@
 - AMF0 Serialization
 - Connect/Publish/Play
 - Audio Relay
+- Video Relay
 - GOP Cache
 - FLV Recording
 - Authentication
@@ -16,7 +17,7 @@
 - ...
 
 ## Broken
-- Video Relay
+- ...
 
 ## Not Implemented
 - Windows Support
