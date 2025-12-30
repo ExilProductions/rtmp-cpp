@@ -309,6 +309,8 @@ using OnDisconnectCallback = std::function<void(std::shared_ptr<RTMPSession>)>;
 using AuthCallback =
     std::function<bool(const std::string &app, const std::string &stream_key,
                        const std::string &client_ip)>;
+using OnLoggerCallback = 
+    std::function<bool(const std::string &message, const LogLevel &logLevel)>;
 
 // Logger
 class Logger {
@@ -325,11 +327,15 @@ public:
   void warn(const std::string &msg);
   void info(const std::string &msg);
   void debug(const std::string &msg);
+  void setOnLog(const OnLoggerCallback cb) { on_log = cb; }
 
 private:
   Logger() : current_level(LogLevel::INFO) {}
   LogLevel current_level;
   std::mutex log_mutex;
+  
+  // Logger Callback
+  OnLoggerCallback on_log;
 
   void log(LogLevel level, const std::string &msg);
 };

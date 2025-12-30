@@ -12,8 +12,8 @@ add_library(rtmp SHARED
 )
 
 target_include_directories(rtmp PUBLIC 
-    &lt;BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include&gt;
-    &lt;INSTALL_INTERFACE:include&gt;
+    BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include;
+    INSTALL_INTERFACE:include;
 )
 
 set_target_properties(rtmp PROPERTIES

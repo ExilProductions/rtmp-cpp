@@ -65,11 +65,8 @@ void Logger::log(LogLevel level, const std::string &msg) {
   if (level > current_level)
     return;
   std::lock_guard<std::mutex> lock(log_mutex);
-  auto now = std::chrono::system_clock::now();
-  auto time = std::chrono::system_clock::to_time_t(now);
-  const char *level_str[] = {"ERROR", "WARN", "INFO", "DEBUG"};
-  std::cout << "[" << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S")
-            << "] [" << level_str[(int)level] << "] " << msg << std::endl;
+  const LogLevel level_enum[] = {LogLevel::ERROR, LogLevel::WARN, LogLevel::INFO, LogLevel::DEBUG};
+  on_log(msg, level);
 }
 
 void Logger::error(const std::string &msg) { log(LogLevel::ERROR, msg); }

@@ -21,6 +21,18 @@ void onPublish(std::shared_ptr<RTMPSession> session, const std::string& app, con
     std::cout << "Publish from " << session->getStreamInfo().client_ip << ": " << app << "/" << key << std::endl;
 }
 
+bool onLog(const std::string& message, const rtmp::LogLevel& level) {
+    std::string levelStr;
+    switch (level) {
+        case LogLevel::ERROR: levelStr = "ERROR"; break;
+        case LogLevel::WARN: levelStr = "WARN"; break;
+        case LogLevel::INFO: levelStr = "INFO"; break;
+        case LogLevel::DEBUG: levelStr = "DEBUG"; break;
+    }
+    std::cout << "[" << levelStr << "] " << message << std::endl;
+    return true;
+}
+
 static struct termios g_orig_termios;
 
 static void restore_terminal() {
@@ -66,6 +78,7 @@ int main() {
     // Set callbacks
     server.setOnConnect(onConnect);
     server.setOnPublish(onPublish);
+    Logger::getInstance().setOnLog(onLog);
 
     // Enable GOP cache
     server.enableGOPCache(true);
