@@ -1,5 +1,4 @@
 # rtmp-cpp
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/user/rtmp-cpp)
 
 A lightweight C++ RTMP server library with C-compatible API.
 
@@ -23,15 +22,16 @@ You can View the Roadmap [Here](ROADMAP.md).
 ./build.sh
 ```
 
-This builds `librtmp.so` and example binary `rtmp_example`.
+This builds `librtmp.so` and example binaries `rtmp_server_cpp` and `rtmp_server_c`.
 
 ## Windows Support
 
-Windows Support has been added in the branch [windows-support](https://github.com/ExilProductions/rtmp-cpp/tree/windows-support)
+Windows Support hasn't been added yet, it will be implemented once the Linx Port is fully Working.
 
 ### Run Example
 ```bash
-./build/rtmp_example
+./build/rtmp_server_cpp
+# or ./build/rtmp_server_c
 ```
 
 Server listens on `rtmp://localhost:1935/live/stream`
