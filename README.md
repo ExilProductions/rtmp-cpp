@@ -26,7 +26,7 @@ This builds `librtmp.so` and example binaries `rtmp_server_cpp` and `rtmp_server
 
 ## Windows Support
 
-Windows Support hasn't been added yet, it will be implemented once the Linx Port is fully Working.
+Windows Support hasn't been added yet, it will be implemented once the Linux Port is fully Working.
 
 ### Run Example
 ```bash
