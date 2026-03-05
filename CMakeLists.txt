@@ -4,6 +4,9 @@ project(rtmp-cpp)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(BUILD_EXAMPLE_C "Build C example" ON)
+option(BUILD_EXAMPLE_CPP "Build C++ example" ON)
+
 include_directories(include)
 
 add_library(rtmp SHARED
@@ -20,11 +23,15 @@ set_target_properties(rtmp PROPERTIES
     PUBLIC_HEADER include/rtmp_capi.h
 )
 
-add_executable(rtmp_server_c server/c/main.c)
-target_link_libraries(rtmp_server_c rtmp)
+if(BUILD_EXAMPLE_C)
+    add_executable(rtmp_server_c server/c/main.c)
+    target_link_libraries(rtmp_server_c rtmp)
+endif()
 
-add_executable(rtmp_server_cpp server/cpp/main.cpp)
-target_link_libraries(rtmp_server_cpp rtmp)
+if(BUILD_EXAMPLE_CPP)
+    add_executable(rtmp_server_cpp server/cpp/main.cpp)
+    target_link_libraries(rtmp_server_cpp rtmp)
+endif()
 
 install(TARGETS rtmp 
     LIBRARY DESTINATION lib
@@ -32,4 +39,10 @@ install(TARGETS rtmp
     PUBLIC_HEADER DESTINATION include
 )
 
-install(TARGETS rtmp_server_c rtmp_server_cpp DESTINATION bin)
+if(BUILD_EXAMPLE_C)
+    install(TARGETS rtmp_server_c DESTINATION bin)
+endif()
+
+if(BUILD_EXAMPLE_CPP)
+    install(TARGETS rtmp_server_cpp DESTINATION bin)
+endif()

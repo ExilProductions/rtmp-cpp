@@ -7,31 +7,124 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <map>
+#include <vector>
+#include <algorithm>
 
 #include "../../include/rtmp_server.hpp"
 
 using namespace rtmp;
 
-// Callbacks
-void onConnect(std::shared_ptr<RTMPSession> session) {
-    std::cout << "Client connected: " << session->getStreamInfo().client_ip << std::endl;
-}
+class ListenOnlyServer {
+    RTMPServer server;
+    std::map<std::string, std::vector<std::shared_ptr<RTMPSession>>> players;
 
-void onPublish(std::shared_ptr<RTMPSession> session, const std::string& app, const std::string& key) {
-    std::cout << "Publish from " << session->getStreamInfo().client_ip << ": " << app << "/" << key << std::endl;
-}
+public:
+    ListenOnlyServer(int port) : server(port) {
+        server.setOnConnect([](std::shared_ptr<RTMPSession> session) {
+            std::cout << "Client connected: " 
+                      << session->getStreamInfo().client_ip << std::endl;
+        });
 
-bool onLog(const std::string& message, const rtmp::LogLevel& level) {
-    std::string levelStr;
-    switch (level) {
-        case LogLevel::ERROR: levelStr = "ERROR"; break;
-        case LogLevel::WARN: levelStr = "WARN"; break;
-        case LogLevel::INFO: levelStr = "INFO"; break;
-        case LogLevel::DEBUG: levelStr = "DEBUG"; break;
+        server.setOnPublish([](std::shared_ptr<RTMPSession> session,
+                               const std::string& app,
+                               const std::string& key) {
+            std::cout << "Publish from " 
+                      << session->getStreamInfo().client_ip 
+                      << ": " << app << "/" << key << std::endl;
+        });
+
+        server.setOnPlay([this](std::shared_ptr<RTMPSession> session,
+                                const std::string& app,
+                                const std::string& key) {
+            std::string fullKey = app + "/" + key;
+            players[fullKey].push_back(session);
+            std::cout << "Player joined: " << fullKey 
+                      << " (total: " << players[fullKey].size() << ")" << std::endl;
+        });
+
+        server.setOnAudioData([this](std::shared_ptr<RTMPSession> session,
+                                     const std::vector<uint8_t>& data,
+                                     uint32_t timestamp) {
+            auto& info = session->getStreamInfo();
+            std::string key = info.app + "/" + info.stream_key;
+            
+            std::cout << "Audio from " << key << ": " 
+                      << data.size() << " bytes, ts: " << timestamp << std::endl;
+            
+            broadcastAudio(info.app, info.stream_key, data, timestamp);
+        });
+
+        server.setOnVideoData([this](std::shared_ptr<RTMPSession> session,
+                                     const std::vector<uint8_t>& data,
+                                     uint32_t timestamp) {
+            auto& info = session->getStreamInfo();
+            std::string key = info.app + "/" + info.stream_key;
+            
+            std::cout << "Video from " << key << ": " 
+                      << data.size() << " bytes, ts: " << timestamp << std::endl;
+            
+            // Example: Only broadcast every 30th frame (demo purposes)
+            // In real use, you might process/transform frames here
+            static int frame_count = 0;
+            frame_count++;
+            if (frame_count % 30 == 0) {
+                broadcastVideo(info.app, info.stream_key, data, timestamp);
+            }
+        });
+
+        server.setOnDisconnect([this](std::shared_ptr<RTMPSession> session) {
+            auto& info = session->getStreamInfo();
+            std::string key = info.app + "/" + info.stream_key;
+            
+            auto it = players.find(key);
+            if (it != players.end()) {
+                it->second.erase(std::remove(it->second.begin(), it->second.end(), session), it->second.end());
+                if (it->second.empty()) {
+                    players.erase(it);
+                }
+            }
+            
+            std::cout << "Client disconnected: " << info.client_ip << std::endl;
+        });
+
+        // NOTE: relay_enabled is false by default
+        // Data goes to callbacks only - you handle broadcasting
+        // Use enableRelay(true) for traditional auto-broadcast behavior
     }
-    std::cout << "[" << levelStr << "] " << message << std::endl;
-    return true;
-}
+
+    void broadcastAudio(const std::string& app, const std::string& key,
+                       const std::vector<uint8_t>& data, uint32_t timestamp) {
+        std::string fullKey = app + "/" + key;
+        auto it = players.find(fullKey);
+        if (it == players.end()) return;
+
+        for (auto& player : it->second) {
+            player->sendChunk(4, timestamp, (uint8_t)MessageType::AUDIO, 
+                            1, data);
+        }
+    }
+
+    void broadcastVideo(const std::string& app, const std::string& key,
+                       const std::vector<uint8_t>& data, uint32_t timestamp) {
+        std::string fullKey = app + "/" + key;
+        auto it = players.find(fullKey);
+        if (it == players.end()) return;
+
+        for (auto& player : it->second) {
+            player->sendChunk(6, timestamp, (uint8_t)MessageType::VIDEO, 
+                            1, data);
+        }
+    }
+
+    bool start(bool& isRunning) {
+        return server.start(isRunning);
+    }
+
+    void stop() {
+        server.stop();
+    }
+};
 
 static struct termios g_orig_termios;
 
@@ -63,33 +156,26 @@ static bool setup_nonblocking_stdin() {
 }
 
 int main() {
-    // Set log level
     Logger::getInstance().setLevel(LogLevel::INFO);
 
-    // Setup non-blocking stdin
     if (!setup_nonblocking_stdin()) {
         std::cerr << "Failed to configure terminal input" << std::endl;
         return 1;
     }
 
-    // Create RTMP server on port 1935
-    RTMPServer server(1935);
-
-    // Set callbacks
-    server.setOnConnect(onConnect);
-    server.setOnPublish(onPublish);
-    Logger::getInstance().setOnLog(onLog);
-
-    // Enable GOP cache
-    server.enableGOPCache(true);
+    ListenOnlyServer listenServer(1935);
 
     bool isRunning = false;
-    if (!server.start(isRunning)) {
+    if (!listenServer.start(isRunning)) {
         std::cerr << "Failed to start server" << std::endl;
         return 1;
     }
 
-    std::cout << "RTMP server running. Press 'q' to stop." << std::endl;
+    std::cout << "RTMP Listen-Only Server running on port 1935" << std::endl;
+    std::cout << "- Data from publishers goes to callbacks" << std::endl;
+    std::cout << "- You decide what to do with the data" << std::endl;
+    std::cout << "- Use enableRelay(true) for traditional auto-broadcast" << std::endl;
+    std::cout << "Press 'q' to stop." << std::endl;
 
     while (isRunning) {
         fd_set readfds;
@@ -107,7 +193,7 @@ int main() {
             ssize_t n = read(STDIN_FILENO, &ch, 1);
             if (n == 1 && (ch == 'q' || ch == 'Q')) {
                 std::cout << "Shutting down..." << std::endl;
-                server.stop();
+                listenServer.stop();
                 break;
             }
         }

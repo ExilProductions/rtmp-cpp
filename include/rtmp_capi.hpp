@@ -71,6 +71,7 @@ void rtmp_server_set_auth_callback(RtmpServerHandle handle, RtmpAuthCallback cb,
 
 // Configuration
 void rtmp_server_enable_gop_cache(RtmpServerHandle handle, bool enable);
+void rtmp_server_enable_relay(RtmpServerHandle handle, bool enable);
 void rtmp_server_set_max_publishers_per_stream(RtmpServerHandle handle,
                                                int max);
 void rtmp_server_set_max_players_per_stream(RtmpServerHandle handle, int max);

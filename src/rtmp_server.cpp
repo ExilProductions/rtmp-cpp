@@ -1318,8 +1318,8 @@ void RTMPServer::handleClient(std::shared_ptr<RTMPSession> session) {
         on_play(session, info.app, info.stream_key);
       }
       play_notified = true;
-      // Send GOP cache to new player
-      if (use_gop_cache) {
+      // Send GOP cache to new player (only if relay enabled)
+      if (relay_enabled && use_gop_cache) {
         std::string key = makeStreamKey(info.app, info.stream_key);
         std::lock_guard<std::mutex> lock(gop_mutex);
         auto it = gop_caches.find(key);
@@ -1379,9 +1379,11 @@ void RTMPServer::processMediaMessages(std::shared_ptr<RTMPSession> session) {
           it->second->writeAudioFrame(msg.payload, msg.header.timestamp);
         }
       }
-      // Relay to players
-      sendAudioToPlayers(info.app, info.stream_key, msg.payload,
-                         msg.header.timestamp);
+      // Relay to players (only if enabled)
+      if (relay_enabled) {
+        sendAudioToPlayers(info.app, info.stream_key, msg.payload,
+                           msg.header.timestamp);
+      }
       break;
     case MessageType::VIDEO:
       if (on_video_data) {
@@ -1403,9 +1405,11 @@ void RTMPServer::processMediaMessages(std::shared_ptr<RTMPSession> session) {
           it->second->writeVideoFrame(msg.payload, msg.header.timestamp);
         }
       }
-      // Relay to players
-      sendVideoToPlayers(info.app, info.stream_key, msg.payload,
-                         msg.header.timestamp);
+      // Relay to players (only if enabled)
+      if (relay_enabled) {
+        sendVideoToPlayers(info.app, info.stream_key, msg.payload,
+                           msg.header.timestamp);
+      }
       break;
     case MessageType::DATA_AMF0: {
       size_t offset = 0;
@@ -1439,8 +1443,10 @@ void RTMPServer::processMediaMessages(std::shared_ptr<RTMPSession> session) {
               it->second->writeMetadata(metadata_obj->object);
             }
           }
-          // Relay metadata to players
-          sendMetadataToPlayers(info.app, info.stream_key, msg.payload);
+          // Relay metadata to players (only if enabled)
+          if (relay_enabled) {
+            sendMetadataToPlayers(info.app, info.stream_key, msg.payload);
+          }
         }
       }
       break;

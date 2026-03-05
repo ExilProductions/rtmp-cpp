@@ -360,7 +360,7 @@ public:
   void setOnDisconnect(OnDisconnectCallback cb) { on_disconnect = cb; }
   void setAuthCallback(AuthCallback cb) { auth_callback = cb; }
 
-  // GOP Cache
+  // GOP Cache (only useful when relay is enabled)
   void enableGOPCache(bool enable) { use_gop_cache = enable; }
   bool isGOPCacheEnabled() const { return use_gop_cache; }
 
@@ -395,6 +395,10 @@ public:
   void setConnectionTimeout(int seconds) { connection_timeout = seconds; }
   int getConnectionTimeout() const { return connection_timeout; }
 
+  // Relay/Broadcasting (disabled by default - no automatic loopback)
+  void enableRelay(bool enable) { relay_enabled = enable; }
+  bool isRelayEnabled() const { return relay_enabled; }
+
   // Broadcasting
   bool sendAudioToPlayers(const std::string &app, const std::string &stream_key,
                           const std::vector<uint8_t> &data, uint32_t timestamp);
@@ -426,7 +430,7 @@ private:
   AuthCallback auth_callback;
 
   // GOP Caches
-  bool use_gop_cache = true;
+  bool use_gop_cache = false;
   std::map<std::string, std::shared_ptr<GOPCache>> gop_caches;
   std::mutex gop_mutex;
 
@@ -449,6 +453,9 @@ private:
 
   // Timeout
   int connection_timeout = 60;
+
+  // Relay
+  bool relay_enabled = false;
 
   void acceptClients();
   void handleClient(std::shared_ptr<RTMPSession> session);

@@ -194,6 +194,11 @@ void rtmp_server_enable_gop_cache(RtmpServerHandle handle, bool enable) {
     return;
   static_cast<Impl *>(handle)->server->enableGOPCache(enable);
 }
+void rtmp_server_enable_relay(RtmpServerHandle handle, bool enable) {
+  if (!handle)
+    return;
+  static_cast<Impl *>(handle)->server->enableRelay(enable);
+}
 void rtmp_server_set_max_publishers_per_stream(RtmpServerHandle handle,
                                                int max) {
   if (!handle)
