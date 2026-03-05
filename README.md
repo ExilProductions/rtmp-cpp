@@ -47,3 +47,5 @@ ffmpeg -re -i input.mp4 -c copy -f flv rtmp://127.0.0.1/live/stream
 
 ## License
 MIT
+
+![GitHubViewsCounter](https://openlabx.com/githubviewscounter/api/gitvcr.php?username=ExilProductions&repository=rtmp-cpp&theme=dark)
