@@ -66,7 +66,9 @@ void Logger::log(LogLevel level, const std::string &msg) {
     return;
   std::lock_guard<std::mutex> lock(log_mutex);
   const LogLevel level_enum[] = {LogLevel::ERROR, LogLevel::WARN, LogLevel::INFO, LogLevel::DEBUG};
-  on_log(msg, level);
+  if (on_log) {
+    on_log(msg, level);
+  }
 }
 
 void Logger::error(const std::string &msg) { log(LogLevel::ERROR, msg); }
@@ -353,7 +355,11 @@ bool RTMPSession::readExactly(uint8_t *buf, size_t len) {
 bool RTMPSession::writeExactly(const uint8_t *buf, size_t len) {
   size_t total = 0;
   while (total < len) {
+#ifndef _WIN32
     ssize_t n = send(client_fd, buf + total, len - total, MSG_NOSIGNAL);
+#else
+    ssize_t n = send(client_fd, buf + total, len - total, 0);
+#endif
     if (n <= 0)
       return false;
     total += n;
