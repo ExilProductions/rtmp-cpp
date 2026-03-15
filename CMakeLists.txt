@@ -20,17 +20,27 @@ target_include_directories(rtmp PUBLIC
 )
 
 set_target_properties(rtmp PROPERTIES
-    PUBLIC_HEADER include/rtmp_capi.h
+    PUBLIC_HEADER "include/rtmp_capi.hpp;include/rtmp_server.hpp"
 )
+
+if(WIN32)
+    target_link_libraries(rtmp PRIVATE ws2_32)
+endif()
 
 if(BUILD_EXAMPLE_C)
     add_executable(rtmp_server_c server/c/main.c)
     target_link_libraries(rtmp_server_c rtmp)
+    if(WIN32)
+        target_link_libraries(rtmp_server_c PRIVATE ws2_32)
+    endif()
 endif()
 
 if(BUILD_EXAMPLE_CPP)
     add_executable(rtmp_server_cpp server/cpp/main.cpp)
     target_link_libraries(rtmp_server_cpp rtmp)
+    if(WIN32)
+        target_link_libraries(rtmp_server_cpp PRIVATE ws2_32)
+    endif()
 endif()
 
 install(TARGETS rtmp 

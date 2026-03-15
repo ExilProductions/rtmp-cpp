@@ -1,24 +1,49 @@
 #ifndef RTMP_SERVER_H
 #define RTMP_SERVER_H
 
-#include <arpa/inet.h>
-#include <chrono>
-#include <cstdint>
-#include <cstring>
-#include <fcntl.h>
-#include <fstream>
-#include <functional>
-#include <iostream>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <netinet/in.h>
-#include <queue>
-#include <string>
-#include <sys/socket.h>
-#include <thread>
-#include <unistd.h>
-#include <vector>
+#ifdef _WIN32
+    #define WIN32_LEAN_AND_MEAN
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #include <chrono>
+    #include <cstdint>
+    #include <cstring>
+    #include <fstream>
+    #include <functional>
+    #include <iostream>
+    #include <map>
+    #include <memory>
+    #include <mutex>
+    #include <queue>
+    #include <string>
+    #include <thread>
+    #include <vector>
+
+    #pragma comment(lib, "ws2_32.lib")
+
+    #define close closesocket
+    #define snprintf _snprintf
+    #define strcasecmp _strcmpi
+#else
+    #include <arpa/inet.h>
+    #include <chrono>
+    #include <cstdint>
+    #include <cstring>
+    #include <fcntl.h>
+    #include <fstream>
+    #include <functional>
+    #include <iostream>
+    #include <map>
+    #include <memory>
+    #include <mutex>
+    #include <netinet/in.h>
+    #include <queue>
+    #include <string>
+    #include <sys/socket.h>
+    #include <thread>
+    #include <unistd.h>
+    #include <vector>
+#endif
 
 namespace rtmp {
 

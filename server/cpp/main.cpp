@@ -1,8 +1,4 @@
 #include <cstdio>
-#include <unistd.h>
-#include <sys/select.h>
-#include <termios.h>
-#include <fcntl.h>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -10,6 +6,16 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+
+#ifdef _WIN32
+    #include <conio.h>
+    #include <windows.h>
+#else
+    #include <unistd.h>
+    #include <sys/select.h>
+    #include <termios.h>
+    #include <fcntl.h>
+#endif
 
 #include "../../include/rtmp_server.hpp"
 
@@ -128,6 +134,11 @@ public:
 
 static struct termios g_orig_termios;
 
+#ifdef _WIN32
+static bool setup_nonblocking_stdin() {
+    return true;
+}
+#else
 static void restore_terminal() {
     tcsetattr(STDIN_FILENO, TCSANOW, &g_orig_termios);
 }
@@ -154,8 +165,17 @@ static bool setup_nonblocking_stdin() {
     std::atexit(restore_terminal);
     return true;
 }
+#endif
 
 int main() {
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        std::cerr << "WSAStartup failed" << std::endl;
+        return 1;
+    }
+#endif
+
     Logger::getInstance().setLevel(LogLevel::INFO);
 
     if (!setup_nonblocking_stdin()) {
@@ -178,6 +198,17 @@ int main() {
     std::cout << "Press 'q' to stop." << std::endl;
 
     while (isRunning) {
+#ifdef _WIN32
+        Sleep(100);
+        if (_kbhit()) {
+            char ch = _getch();
+            if (ch == 'q' || ch == 'Q') {
+                std::cout << "Shutting down..." << std::endl;
+                listenServer.stop();
+                break;
+            }
+        }
+#else
         fd_set readfds;
         struct timeval tv;
 
@@ -197,7 +228,12 @@ int main() {
                 break;
             }
         }
+#endif
     }
+
+#ifdef _WIN32
+    WSACleanup();
+#endif
 
     return 0;
 }

@@ -1,13 +1,19 @@
 #include "../include/rtmp_capi.hpp"
 #include <stdio.h>
-#include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/select.h>
-#include <termios.h>
-#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef _WIN32
+    #include <conio.h>
+    #include <windows.h>
+#else
+    #include <unistd.h>
+    #include <sys/select.h>
+    #include <termios.h>
+    #include <fcntl.h>
+#endif
 
 // Store connected players
 #define MAX_PLAYERS 100
@@ -112,6 +118,11 @@ static void on_disconnect_cb(const char* ip, const char* app,
 
 static struct termios g_orig_termios;
 
+#ifdef _WIN32
+static int setup_nonblocking_stdin(void) {
+    return 1;
+}
+#else
 static void restore_terminal(void) {
     tcsetattr(STDIN_FILENO, TCSANOW, &g_orig_termios);
 }
@@ -138,8 +149,17 @@ static int setup_nonblocking_stdin(void) {
     atexit(restore_terminal);
     return 1;
 }
+#endif
 
 int main(void) {
+#ifdef _WIN32
+    WSADATA wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        printf("WSAStartup failed\n");
+        return 1;
+    }
+#endif
+
     rtmp_logger_set_level(RTMP_LOG_INFO);
 
     if (!setup_nonblocking_stdin()) {
@@ -187,6 +207,17 @@ int main(void) {
     printf("Press 'q' to stop.\n");
 
     while (isRunning) {
+#ifdef _WIN32
+        Sleep(100);
+        if (_kbhit()) {
+            char ch = _getch();
+            if (ch == 'q' || ch == 'Q') {
+                printf("Shutting down...\n");
+                rtmp_server_stop(server);
+                break;
+            }
+        }
+#else
         fd_set readfds;
         struct timeval tv;
 
@@ -206,8 +237,12 @@ int main(void) {
                 break;
             }
         }
+#endif
     }
 
     rtmp_server_destroy(server);
+#ifdef _WIN32
+    WSACleanup();
+#endif
     return 0;
 }
