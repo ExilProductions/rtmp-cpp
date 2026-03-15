@@ -1,3 +1,15 @@
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    #pragma comment(lib, "ws2_32.lib")
+    #include <conio.h>
+#else
+    #include <unistd.h>
+    #include <sys/select.h>
+    #include <termios.h>
+    #include <fcntl.h>
+#endif
+
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -7,120 +19,61 @@
 #include <vector>
 #include <algorithm>
 
-#ifdef _WIN32
-    #include <conio.h>
-    #include <windows.h>
-#else
-    #include <unistd.h>
-    #include <sys/select.h>
-    #include <termios.h>
-    #include <fcntl.h>
-#endif
-
 #include "../../include/rtmp_server.hpp"
+
+#ifndef _WIN32
+static struct termios g_orig_termios;
+#endif
 
 using namespace rtmp;
 
-class ListenOnlyServer {
+class RTMPServerApp {
     RTMPServer server;
-    std::map<std::string, std::vector<std::shared_ptr<RTMPSession>>> players;
 
 public:
-    ListenOnlyServer(int port) : server(port) {
+    RTMPServerApp(int port) : server(port) {
         server.setOnConnect([](std::shared_ptr<RTMPSession> session) {
-            std::cout << "Client connected: " 
+            std::cout << "[+] Client connected: " 
                       << session->getStreamInfo().client_ip << std::endl;
         });
 
         server.setOnPublish([](std::shared_ptr<RTMPSession> session,
                                const std::string& app,
                                const std::string& key) {
-            std::cout << "Publish from " 
-                      << session->getStreamInfo().client_ip 
-                      << ": " << app << "/" << key << std::endl;
+            std::cout << "[+] Publisher started: " << app << "/" << key 
+                      << " from " << session->getStreamInfo().client_ip << std::endl;
         });
 
-        server.setOnPlay([this](std::shared_ptr<RTMPSession> session,
-                                const std::string& app,
-                                const std::string& key) {
-            std::string fullKey = app + "/" + key;
-            players[fullKey].push_back(session);
-            std::cout << "Player joined: " << fullKey 
-                      << " (total: " << players[fullKey].size() << ")" << std::endl;
+        server.setOnPlay([](std::shared_ptr<RTMPSession> session,
+                            const std::string& app,
+                            const std::string& key) {
+            std::cout << "[+] Player joined: " << app << "/" << key 
+                      << " from " << session->getStreamInfo().client_ip << std::endl;
         });
 
-        server.setOnAudioData([this](std::shared_ptr<RTMPSession> session,
-                                     const std::vector<uint8_t>& data,
-                                     uint32_t timestamp) {
+        server.setOnAudioData([](std::shared_ptr<RTMPSession> session,
+                                 const std::vector<uint8_t>& data,
+                                 uint32_t timestamp) {
             auto& info = session->getStreamInfo();
-            std::string key = info.app + "/" + info.stream_key;
-            
-            std::cout << "Audio from " << key << ": " 
-                      << data.size() << " bytes, ts: " << timestamp << std::endl;
-            
-            broadcastAudio(info.app, info.stream_key, data, timestamp);
+            std::cout << "[+] Audio: " << info.app << "/" << info.stream_key 
+                      << " (" << data.size() << " bytes, ts: " << timestamp << ")" << std::endl;
         });
 
-        server.setOnVideoData([this](std::shared_ptr<RTMPSession> session,
-                                     const std::vector<uint8_t>& data,
-                                     uint32_t timestamp) {
+        server.setOnVideoData([](std::shared_ptr<RTMPSession> session,
+                                 const std::vector<uint8_t>& data,
+                                 uint32_t timestamp) {
             auto& info = session->getStreamInfo();
-            std::string key = info.app + "/" + info.stream_key;
-            
-            std::cout << "Video from " << key << ": " 
-                      << data.size() << " bytes, ts: " << timestamp << std::endl;
-            
-            // Example: Only broadcast every 30th frame (demo purposes)
-            // In real use, you might process/transform frames here
-            static int frame_count = 0;
-            frame_count++;
-            if (frame_count % 30 == 0) {
-                broadcastVideo(info.app, info.stream_key, data, timestamp);
-            }
+            std::cout << "[+] Video: " << info.app << "/" << info.stream_key 
+                      << " (" << data.size() << " bytes, ts: " << timestamp << ")" << std::endl;
         });
 
-        server.setOnDisconnect([this](std::shared_ptr<RTMPSession> session) {
+        server.setOnDisconnect([](std::shared_ptr<RTMPSession> session) {
             auto& info = session->getStreamInfo();
-            std::string key = info.app + "/" + info.stream_key;
-            
-            auto it = players.find(key);
-            if (it != players.end()) {
-                it->second.erase(std::remove(it->second.begin(), it->second.end(), session), it->second.end());
-                if (it->second.empty()) {
-                    players.erase(it);
-                }
-            }
-            
-            std::cout << "Client disconnected: " << info.client_ip << std::endl;
+            std::cout << "[-] Client disconnected: " << info.client_ip << std::endl;
         });
 
-        // NOTE: relay_enabled is false by default
-        // Data goes to callbacks only - you handle broadcasting
-        // Use enableRelay(true) for traditional auto-broadcast behavior
-    }
-
-    void broadcastAudio(const std::string& app, const std::string& key,
-                       const std::vector<uint8_t>& data, uint32_t timestamp) {
-        std::string fullKey = app + "/" + key;
-        auto it = players.find(fullKey);
-        if (it == players.end()) return;
-
-        for (auto& player : it->second) {
-            player->sendChunk(4, timestamp, (uint8_t)MessageType::AUDIO, 
-                            1, data);
-        }
-    }
-
-    void broadcastVideo(const std::string& app, const std::string& key,
-                       const std::vector<uint8_t>& data, uint32_t timestamp) {
-        std::string fullKey = app + "/" + key;
-        auto it = players.find(fullKey);
-        if (it == players.end()) return;
-
-        for (auto& player : it->second) {
-            player->sendChunk(6, timestamp, (uint8_t)MessageType::VIDEO, 
-                            1, data);
-        }
+        server.enableRelay(true);
+        server.enableGOPCache(true);
     }
 
     bool start(bool& isRunning) {
@@ -130,20 +83,34 @@ public:
     void stop() {
         server.stop();
     }
+
+    int getActivePublishers() {
+        return server.getActivePublishers();
+    }
+
+    int getActivePlayers() {
+        return server.getActivePlayers();
+    }
+
+    int getTotalConnections() {
+        return server.getTotalConnections();
+    }
+
+    bool isRunning() {
+        return server.isRunning();
+    }
 };
 
-static struct termios g_orig_termios;
-
-#ifdef _WIN32
-static bool setup_nonblocking_stdin() {
-    return true;
-}
-#else
+#ifndef _WIN32
 static void restore_terminal() {
     tcsetattr(STDIN_FILENO, TCSANOW, &g_orig_termios);
 }
+#endif
 
 static bool setup_nonblocking_stdin() {
+#ifdef _WIN32
+    return true;
+#else
     struct termios raw;
     int flags;
 
@@ -164,8 +131,8 @@ static bool setup_nonblocking_stdin() {
 
     std::atexit(restore_terminal);
     return true;
-}
 #endif
+}
 
 int main() {
 #ifdef _WIN32
@@ -183,29 +150,38 @@ int main() {
         return 1;
     }
 
-    ListenOnlyServer listenServer(1935);
+    RTMPServerApp app(1935);
 
     bool isRunning = false;
-    if (!listenServer.start(isRunning)) {
+    if (!app.start(isRunning)) {
         std::cerr << "Failed to start server" << std::endl;
         return 1;
     }
 
-    std::cout << "RTMP Listen-Only Server running on port 1935" << std::endl;
-    std::cout << "- Data from publishers goes to callbacks" << std::endl;
-    std::cout << "- You decide what to do with the data" << std::endl;
-    std::cout << "- Use enableRelay(true) for traditional auto-broadcast" << std::endl;
-    std::cout << "Press 'q' to stop." << std::endl;
+    std::cout << "\n===========================================" << std::endl;
+    std::cout << "   RTMP Server running on port 1935" << std::endl;
+    std::cout << "===========================================" << std::endl;
+    std::cout << "- Auto-relay enabled (publishers -> players)" << std::endl;
+    std::cout << "- GOP cache enabled for instant playback" << std::endl;
+    std::cout << "- Press 'q' to stop." << std::endl;
+    std::cout << "- Press 's' to show statistics." << std::endl;
+    std::cout << "===========================================\n" << std::endl;
 
-    while (isRunning) {
+    while (app.isRunning()) {
 #ifdef _WIN32
         Sleep(100);
         if (_kbhit()) {
             char ch = _getch();
             if (ch == 'q' || ch == 'Q') {
-                std::cout << "Shutting down..." << std::endl;
-                listenServer.stop();
+                std::cout << "\nShutting down..." << std::endl;
+                app.stop();
                 break;
+            } else if (ch == 's' || ch == 'S') {
+                std::cout << "\n--- Statistics ---" << std::endl;
+                std::cout << "Active publishers: " << app.getActivePublishers() << std::endl;
+                std::cout << "Active players: " << app.getActivePlayers() << std::endl;
+                std::cout << "Total connections: " << app.getTotalConnections() << std::endl;
+                std::cout << "------------------\n" << std::endl;
             }
         }
 #else
@@ -215,17 +191,25 @@ int main() {
         FD_ZERO(&readfds);
         FD_SET(STDIN_FILENO, &readfds);
 
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
+        tv.tv_sec = 0;
+        tv.tv_usec = 100000;
 
         int ret = select(STDIN_FILENO + 1, &readfds, NULL, NULL, &tv);
         if (ret > 0 && FD_ISSET(STDIN_FILENO, &readfds)) {
             char ch;
             ssize_t n = read(STDIN_FILENO, &ch, 1);
-            if (n == 1 && (ch == 'q' || ch == 'Q')) {
-                std::cout << "Shutting down..." << std::endl;
-                listenServer.stop();
-                break;
+            if (n == 1) {
+                if (ch == 'q' || ch == 'Q') {
+                    std::cout << "\nShutting down..." << std::endl;
+                    app.stop();
+                    break;
+                } else if (ch == 's' || ch == 'S') {
+                    std::cout << "\n--- Statistics ---" << std::endl;
+                    std::cout << "Active publishers: " << app.getActivePublishers() << std::endl;
+                    std::cout << "Active players: " << app.getActivePlayers() << std::endl;
+                    std::cout << "Total connections: " << app.getTotalConnections() << std::endl;
+                    std::cout << "------------------\n" << std::endl;
+                }
             }
         }
 #endif
@@ -235,5 +219,6 @@ int main() {
     WSACleanup();
 #endif
 
+    std::cout << "Server stopped." << std::endl;
     return 0;
 }

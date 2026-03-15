@@ -5,6 +5,10 @@
     #define WIN32_LEAN_AND_MEAN
     #include <winsock2.h>
     #include <ws2tcpip.h>
+    #undef ERROR
+    #undef WARN
+    #undef INFO
+    #undef DEBUG
     #include <chrono>
     #include <cstdint>
     #include <cstring>
@@ -21,7 +25,6 @@
 
     #pragma comment(lib, "ws2_32.lib")
 
-    #define close closesocket
     #define snprintf _snprintf
     #define strcasecmp _strcmpi
 #else

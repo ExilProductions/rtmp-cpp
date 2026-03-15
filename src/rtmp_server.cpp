@@ -335,14 +335,18 @@ RTMPSession::RTMPSession(int fd, const std::string &client_ip)
 
 RTMPSession::~RTMPSession() {
   if (client_fd >= 0) {
-    close(client_fd);
+    closesocket(client_fd);
   }
 }
 
 bool RTMPSession::readExactly(uint8_t *buf, size_t len) {
   size_t total = 0;
   while (total < len) {
+#ifdef _WIN32
+    int n = recv(client_fd, (char*)(buf + total), (int)(len - total), 0);
+#else
     ssize_t n = recv(client_fd, buf + total, len - total, 0);
+#endif
     if (n <= 0)
       return false;
     total += n;
@@ -355,10 +359,10 @@ bool RTMPSession::readExactly(uint8_t *buf, size_t len) {
 bool RTMPSession::writeExactly(const uint8_t *buf, size_t len) {
   size_t total = 0;
   while (total < len) {
-#ifndef _WIN32
-    ssize_t n = send(client_fd, buf + total, len - total, MSG_NOSIGNAL);
+#ifdef _WIN32
+    int n = send(client_fd, (const char*)(buf + total), (int)(len - total), 0);
 #else
-    ssize_t n = send(client_fd, buf + total, len - total, 0);
+    ssize_t n = send(client_fd, buf + total, len - total, MSG_NOSIGNAL);
 #endif
     if (n <= 0)
       return false;
@@ -504,7 +508,7 @@ bool RTMPSession::receiveChunk() {
   if (!parseChunkHeader(header))
     return false;
   auto &incomplete = incomplete_chunks[header.csid];
-  size_t to_read = std::min((size_t)chunk_size,
+  size_t to_read = (std::min)((size_t)chunk_size,
                             (size_t)(header.msg_length - incomplete.size()));
   std::vector<uint8_t> chunk_data(to_read);
   if (!readExactly(chunk_data.data(), to_read))
@@ -563,7 +567,7 @@ bool RTMPSession::sendChunk(uint32_t csid, uint32_t timestamp, uint8_t msg_type,
         chunk.insert(chunk.end(), ext_ts, ext_ts + 4);
       }
     }
-    size_t to_send = std::min(chunk_size, (uint32_t)(data.size() - sent));
+    size_t to_send = (std::min)(chunk_size, (uint32_t)(data.size() - sent));
     chunk.insert(chunk.end(), data.begin() + sent,
                  data.begin() + sent + to_send);
     if (!writeExactly(chunk.data(), chunk.size()))
@@ -1151,8 +1155,8 @@ bool RTMPServer::start(bool &isRunning) {
     return false;
   }
   int opt = 1;
-  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-    close(server_fd);
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt)) < 0) {
+    closesocket(server_fd);
     return false;
   }
   sockaddr_in addr;
@@ -1162,12 +1166,12 @@ bool RTMPServer::start(bool &isRunning) {
   addr.sin_port = htons(port);
   if (bind(server_fd, (sockaddr *)&addr, sizeof(addr)) < 0) {
     LOG_ERROR("Failed to bind socket");
-    close(server_fd);
+    closesocket(server_fd);
     return false;
   }
   if (listen(server_fd, 10) < 0) {
     LOG_ERROR("Failed to listen on socket");
-    close(server_fd);
+    closesocket(server_fd);
     return false;
   }
   running = true;
@@ -1186,16 +1190,25 @@ void RTMPServer::stop() {
     return;
   running = false;
   if (server_fd >= 0) {
+#ifdef _WIN32
+    shutdown(server_fd, SD_BOTH);
+#else
     shutdown(server_fd, SHUT_RDWR);
-    close(server_fd);
+#endif
+    closesocket(server_fd);
     server_fd = -1;
   }
 
   {
     std::lock_guard<std::mutex> lock(sessions_mutex);
     for (auto &session : sessions) {
+#ifdef _WIN32
+      shutdown(session->getFd(), SD_BOTH);
+      closesocket(session->getFd());
+#else
       shutdown(session->getFd(), SHUT_RDWR);
       close(session->getFd());
+#endif
     }
   }
 
@@ -1237,7 +1250,7 @@ void RTMPServer::acceptClients() {
       std::lock_guard<std::mutex> lock(sessions_mutex);
       if ((int)sessions.size() >= max_total_connections) {
         LOG_WARN("Max connections reached, rejecting client");
-        close(client_fd);
+        closesocket(client_fd);
         continue;
       }
     }
